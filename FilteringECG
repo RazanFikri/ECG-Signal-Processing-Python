@@ -1,0 +1,72 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import datasets # لجلب بيانات حقيقية
+from scipy.signal import find_peaks
+# جلب إشارة ECG حقيقية (مخزنة في المكتبة)
+ecg = datasets.electrocardiogram()
+fs = 360  # تردد العينات لهذه الإشارة هو 360Hz
+time = np.arange(ecg.size) / fs
+
+# لنأخذ أول 5 ثوانٍ فقط حتى لا يثقل الكود
+duration = 5 
+samples = duration * fs
+ecg_segment = ecg[:samples]
+t_segment = time[:samples]
+
+
+# توليد ضجيج كهرباء بتردد 50 هرتز
+interference = 0.5 * np.sin(2 * np.pi * 50 * t_segment)
+
+# الإشارة المشوشة
+noisy_ecg = ecg_segment + interference
+
+
+fft_noisy_ecg = np.fft.fft(noisy_ecg)
+magnitude = np.abs(fft_noisy_ecg)
+frequency = np.fft.fftfreq(len(noisy_ecg), 1/fs)
+
+
+# 1. ابحثي عن الأماكن التي يقترب فيها التردد من 50 (بالقيمة المطلقة لأن هناك ترددات سالبة)
+# نستخدم np.abs(frequency) لأن الـ FFT مرآة، والضجيج موجود في الـ 50 والـ -50
+indices_to_remove = (np.abs(frequency[:len(fft_noisy_ecg)]) > 48) & (np.abs(frequency[:len(fft_noisy_ecg)]) < 52)
+
+# 2. تصفير الترددات المزعجة في مصفوفة الـ FFT مباشرة
+fft_noisy_ecg[indices_to_remove] = 0
+
+# 3. العودة لعالم الزمن (هذه الخطوة التي كانت تنقصك)
+cleaned_signal = np.fft.ifft(fft_noisy_ecg).real   
+
+
+
+
+peaks, _ = find_peaks(cleaned_signal,height=0.5,distance=100)
+num_beats = len(peaks)
+duration_seconds = 5
+bpm = (num_beats/duration_seconds) * 60
+print(f"{num_beats} were detected in {duration_seconds}")
+print(f"bpm is {bpm}")
+
+
+
+plt.figure(figsize=(12, 4))
+plt.subplot(3,1,1)
+plt.plot(t_segment, cleaned_signal, label="Cleaned ECG")
+plt.plot(t_segment[peaks], cleaned_signal[peaks], "x", color="red", label="Detected Beats")
+plt.title(f"Heart Rate Detection: {bpm:.1f} BPM")
+
+
+
+print(len(t_segment), len(t_segment))
+# plt.plot(t_segment, ecg_segment)
+plt.subplot(3,1,2)
+plt.plot(t_segment, noisy_ecg, color='red', alpha=0.5)
+plt.subplot(3,1,3)
+plt.plot(t_segment, cleaned_signal, color='green', alpha=0.5)
+
+
+
+plt.title("Real ECG Signal (Clean)")
+plt.xlabel("Time (s)")
+plt.ylabel("Voltage (mV)")
+plt.show()
+
