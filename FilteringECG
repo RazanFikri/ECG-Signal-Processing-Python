@@ -1,23 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import datasets # لجلب بيانات حقيقية
+from scipy import datasets 
 from scipy.signal import find_peaks
-# جلب إشارة ECG حقيقية (مخزنة في المكتبة)
 ecg = datasets.electrocardiogram()
-fs = 360  # تردد العينات لهذه الإشارة هو 360Hz
+fs = 360  
 time = np.arange(ecg.size) / fs
 
-# لنأخذ أول 5 ثوانٍ فقط حتى لا يثقل الكود
 duration = 5 
 samples = duration * fs
 ecg_segment = ecg[:samples]
 t_segment = time[:samples]
 
 
-# توليد ضجيج كهرباء بتردد 50 هرتز
 interference = 0.5 * np.sin(2 * np.pi * 50 * t_segment)
 
-# الإشارة المشوشة
 noisy_ecg = ecg_segment + interference
 
 
@@ -26,14 +22,10 @@ magnitude = np.abs(fft_noisy_ecg)
 frequency = np.fft.fftfreq(len(noisy_ecg), 1/fs)
 
 
-# 1. ابحثي عن الأماكن التي يقترب فيها التردد من 50 (بالقيمة المطلقة لأن هناك ترددات سالبة)
-# نستخدم np.abs(frequency) لأن الـ FFT مرآة، والضجيج موجود في الـ 50 والـ -50
 indices_to_remove = (np.abs(frequency[:len(fft_noisy_ecg)]) > 48) & (np.abs(frequency[:len(fft_noisy_ecg)]) < 52)
 
-# 2. تصفير الترددات المزعجة في مصفوفة الـ FFT مباشرة
 fft_noisy_ecg[indices_to_remove] = 0
 
-# 3. العودة لعالم الزمن (هذه الخطوة التي كانت تنقصك)
 cleaned_signal = np.fft.ifft(fft_noisy_ecg).real   
 
 
